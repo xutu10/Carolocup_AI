@@ -1,13 +1,14 @@
-#include"park.hpp"
-#include<iostream>
+#include "park.hpp"
+#include <iostream>
 using namespace std;
 
-int main(){
+int main() {
 
-    Find s;
+	Find s;
 	s.finding(true);
 	Park p;
 	p.parking();
-	cout<<"success"<<endl;
+	cout << "success" << endl;
 	return 0;
 }
+
