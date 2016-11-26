@@ -4,10 +4,9 @@ using namespace std;
 
 int main() {
 
-	Find s;
-	s.finding(true);
 	Park p;
-	p.parking();
+	p.finding();
+	p.backing();
 	cout << "success" << endl;
 	return 0;
 }
