@@ -5,7 +5,7 @@ using namespace std;
 Park::Park() {
 	status = 0;
 	substatus = 0;
-	sensor = new Sensor();
+	sensor = new Sensor;
 }
 
 Park::~Park() {
@@ -26,7 +26,7 @@ int Park::controlling() {
 /*return the value of status,either 1 stands for finding(),or 2 for backing() */
 int Park::finding() {
 
-	double current_speed, timer = 0;
+	float current_speed, timer = 0;
 
 	if (0 == substatus && true  == sensor->side_sensor) {
 		substatus = 1;

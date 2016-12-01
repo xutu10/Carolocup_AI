@@ -1,6 +1,6 @@
 #pragma once
 
-#define TIRE_DIAMETER  0.05      /* 0.05m = 50mm */
+#define TIRE_DIAMETER  0.067  /* 0.067m = 67mm */
 #define PARKLOT_LENGTH 0.6  /* 0.6m = 600 mm */
 
 /*
@@ -10,12 +10,12 @@
 
 class Sensor {
 public:
-double current_rotation;
+float current_rotation;
 bool side_sensor;     /* side_sensor == true means something beside */
 
-double back_dis;
-double set_rotation;
-double set_steering;     /* negative steering is left */
+float back_dis;
+float set_rotation;
+float set_steering;     /* negative steering is left */
 };
 
 class Park {
