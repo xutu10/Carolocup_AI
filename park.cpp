@@ -25,7 +25,7 @@ int Park::controlling() {
 
 /*return the value of status,either 1 stands for finding(),or 2 for backing() */
 int Park::finding() {
-
+	cout<<"status "<<status<<" finding"<<endl;
 	float current_speed, timer = 0;
 
 	if (0 == substatus && true  == sensor->side_sensor) {
@@ -51,7 +51,8 @@ int Park::finding() {
 /*return the value of status either 2 for backing or 3 for finish
  *  disired speed  0.02m/s */
 int Park::backing() {
-
+	cout<<"status "<<status<<" backing"<<endl;
+	
 	if (0 == substatus) {
 		/*
 		 *??? the value when noting in the range of back sensor
