@@ -3,11 +3,6 @@
 #define TIRE_DIAMETER  0.067  /* 0.067m = 67mm */
 #define PARKLOT_LENGTH 0.6  /* 0.6m = 600 mm */
 
-/*
- *??? sensor,rotation,steering as parameter to pass or as class member
- *how to set the timer and blink
- *??? the value of back_sensor when too far awary from something back */
-
 class Sensor {
 public:
 float current_rotation;

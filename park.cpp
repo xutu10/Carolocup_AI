@@ -12,6 +12,7 @@ Park::~Park() {
 	delete sensor;
 }
 
+/*according to the status select the function to be called. */
 int Park::controlling() {
 	switch (status) {
 		case 1: status = finding();
@@ -23,9 +24,11 @@ int Park::controlling() {
 	return 0;
 }
 
-/*return the value of status,either 1 stands for finding(),or 2 for backing() */
+/*
+ * check if the lot beside is enough for the parking, namely greater than 0.67m.
+ * return the value of status,either 1 stands for finding(),or 2 for backing()
+ */
 int Park::finding() {
-	cout<<"status "<<status<<" finding"<<endl;
 	float current_speed, timer = 0;
 
 	if (0 == substatus && true  == sensor->side_sensor) {
@@ -48,15 +51,14 @@ int Park::finding() {
 	return 1;
 }
 
-/*return the value of status either 2 for backing or 3 for finish
- *  disired speed  0.02m/s */
+/*
+ *  disired speed  0.02m/s
+ * park the car into a parklot.
+ * return the value of status either 2 for backing or 3 for finish
+ */
 int Park::backing() {
-	cout<<"status "<<status<<" backing"<<endl;
-	
+
 	if (0 == substatus) {
-		/*
-		 *??? the value when noting in the range of back sensor
-		 *??? everytime must set the rotation and steering despite no status changed */
 		if (0 != sensor->back_dis) {         /* back right 30 */
 			substatus = 1;
 			sensor->set_rotation = -50;
@@ -65,7 +67,7 @@ int Park::backing() {
 			sensor->set_rotation = -50;
 			sensor->set_steering = 3.14 / 6;
 		}
-	} else if (1 == substatus)  {
+	} else if (1 == substatus) {
 		if (0 == sensor->back_dis) {
 			substatus = 2;                     /*back left 30*/
 			sensor->set_rotation = -50;
@@ -74,7 +76,7 @@ int Park::backing() {
 			sensor->set_rotation = -50;
 			sensor->set_steering = 3.14 / 6;
 		}
-	} else if (2 == substatus)  {
+	} else if (2 == substatus) {
 		if (sensor->back_dis < 0.05) {
 			substatus = 3;                        /*forward right 20*/
 			sensor->set_rotation = 50;
