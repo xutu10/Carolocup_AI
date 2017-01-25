@@ -1,8 +1,8 @@
 #pragma once
 #include "speed_reg.h"
 
-#define TIRE_DIAMETER  0.067      /*unit m */
-#define PARKLOT_LENGTH 0.6  /*unit m */
+#define TIRE_DIAMETER  0.067    /*unit m */
+#define PARKLOT_LENGTH 0.6  	/*unit m */
 
 class Park {
 	public:
