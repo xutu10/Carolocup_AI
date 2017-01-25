@@ -16,7 +16,7 @@ class Park {
 	                 *  1 stands for finding, 2 for parking, 3 for finish*/
 
 		int substatus; /* status in finding or parking */
-		uint32_t pre_time; /*store the previous time */
+		float pre_distance; /*store the previous distance */
 		carolo_telemetry *tele;
 		SpeedSteering *s_s;  /*to call reg in speed_reg.h  */
 };
