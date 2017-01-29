@@ -31,8 +31,8 @@ int Park::controlling() {
 }
 
 /**
- *  search a park lot whose length is greater than 600mm
- *  side_sensor, timer and rotation are needed
+ *  look for a park lot whose length is greater than 600mm
+ *  side_sensor, distance from telemetry struct are needed
  *
  *  @return the current status back to controlling(),
  *  either 0 stands for finding(), or 1 for backing()
@@ -41,7 +41,7 @@ int Park::finding() {
 
 	double current_speed = 0;
 	float space = 0;
-	bool side_sensor = false;        /* !!! it should be from in telemetry struct */
+	bool side_sensor = false;        /* !!! it should be from telemetry struct */
 	if (0 == substatus && true  == side_sensor) {
 		substatus = 1;
 	} else if (1 == substatus && false == side_sensor) {
@@ -54,7 +54,7 @@ int Park::finding() {
 		substatus = 3;
 	} else if (3 == substatus) {
 		if (tele->distance - pre_distance > PARKLOT_LENGTH) {
-			pre_distance = 0;                        /*stop timer*/
+			pre_distance = 0;                        /*stop countring*/
 			substatus = 0;                           /*initial for backing*/
 			return 1;                                /* to call backing() */
 		} else  {
@@ -71,8 +71,7 @@ return 0;
 /**
  *  backing the car into the park lot,  desired speed  0.05m/s
  *  based on back_sensor to change the substatus
- *  pass the desired rotation and steering to system through *data
- *  data-> x is from -1 to 1, temporarily i set 1 = 30 degree,
+ *  x is from -1 to 1, temporarily i set 1 = 30 degree,
  *  -1 = -30 which means turn left 30 degree
  *
  *  @return status to controlling(), 1 for back, 2 for finish
