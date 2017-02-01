@@ -6,8 +6,7 @@
 
 class Park {
 	public:
-		Park();
-		~Park();
+ Park(): status(0), substatus(0) {};
 		int controlling();
 		int finding();
 		int backing();

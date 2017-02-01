@@ -2,16 +2,6 @@
 #include <iostream>
 using namespace std;
 
-Park::Park() status(0), substatus(0) {
-	tele = new carolo_telemetry();
-	s_s = new SpeedSteering();
-}
-
-Park::~Park() {
-	delete tele;
-	delete s_s;
-}
-
 /**
  *  control the whole parking process, according to the status
  *  call the corresponding function
@@ -39,8 +29,6 @@ int Park::controlling() {
  */
 int Park::finding() {
 
-	double current_speed = 0;
-	float space = 0;
 	bool side_sensor = false;        /* !!! it should be from telemetry struct */
 	if (0 == substatus && true  == side_sensor) {
 		substatus = 1;
@@ -91,23 +79,23 @@ int Park::backing() {
 		substatus = 2;
 		x = -1;
 	}
-} else if (2 == substatus && tele->us[0] < 0.05) {        /*forward right 20*/
+  else if (2 == substatus && tele->us[0] < 0.05) {        /*forward right 20*/
 	substatus = 3;
 	x = 2 / 3;
 }
-} else if (3 == substatus && tele->us[0] > 0.15) {                 /*back left 20*/
+ else if (3 == substatus && tele->us[0] > 0.15) {                 /*back left 20*/
 	substatus = 4;
 	x = -2 / 3;
 }
-} else if (4 == substatus && tele->us[0] < 0.05) {              /*forward right 10*/
+ else if (4 == substatus && tele->us[0] < 0.05) {              /*forward right 10*/
 	substatus = 5;
 	x = 1 / 3;
 }
-} else if (5 == substatus && tele->us[0] > 0.12) {
+ else if (5 == substatus && tele->us[0] > 0.12) {
 	s_s->reg(0, 0);                        /*stop the car*/                                  
 	return 2;                              /*park is finished*/
 }
-}
-s_s->reg(x, maxspeed);
+
+s_s->reg(x, max_speed);
 return 1;
 }
