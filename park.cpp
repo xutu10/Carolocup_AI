@@ -1,5 +1,6 @@
 #include "park.h"
-using namespace ki;
+#include <assert.h>
+#include <stdlib.h>
 /**
  *  control the whole parking process, according to the status
  *  call the corresponding function
@@ -7,7 +8,12 @@ using namespace ki;
  *  @return 1 to main, if the parking finished
  */
 
-Park::Park(carolo_telemetry *tel, SpeedSteering *ss): tele(tel), s_s(ss), status(FINDING),substatus(0){}
+Park::Park(carolo_telemetry *tel, SpeedSteering *ss): status(FINDING),substatus(0){
+
+	assert(tel != NULL && ss != NULL);
+	tele = tel;
+	s_s = ss;
+}
 
 int Park::controlling() {
 	switch (status) {
@@ -15,9 +21,10 @@ int Park::controlling() {
 			break;
 		case BACKING: status = backing();
 			break;
-		case FINISHED: return 1; /* park finish */
+		case FINISHED: return EXIT_SUCCESS; /* park finish */
+     	default:  return EXIT_FAILURE;
 	}
-	return 0;
+	return 2;  
 }
 
 /**
@@ -41,7 +48,7 @@ int Park::finding() {
 		substatus = 3;
 	} else if (3 == substatus) {
 		if (tele->distance - pre_distance > PARK_SPACE) {
-			pre_distance = 0;                        /*stop countring*/
+			pre_distance = 0;                        /*stop counting*/
 			substatus = 0;                           /*initial for backing*/
 			return BACKING;                                /* to call backing() */
 		} else  {
