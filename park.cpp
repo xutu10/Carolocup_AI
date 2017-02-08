@@ -1,6 +1,6 @@
 #include "park.h"
 #include <assert.h>
-#include <stdlib.h>
+
 /**
  *  control the whole parking process, according to the status
  *  call the corresponding function
@@ -21,8 +21,8 @@ int Park::controlling() {
 			break;
 		case BACKING: status = backing();
 			break;
-		case FINISHED: return EXIT_SUCCESS; /* park finish */
-     	default:  return EXIT_FAILURE;
+		case FINISHED: return 1; /* park finish */
+     	default:  return 0;
 	}
 	return 2;  
 }

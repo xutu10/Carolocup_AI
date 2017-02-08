@@ -11,7 +11,6 @@ class Park {
 	
  public:
 	    Park(carolo_telemetry*,SpeedSteering*);
-		enum status{FINDING, BACKING, FINISHED};
 		
  private:
 		int controlling();
@@ -25,6 +24,7 @@ class Park {
 		carolo_telemetry *tele;
 		SpeedSteering *s_s;  /*to call reg in speed_reg.h  */
 		const float PARK_SPACE = 0.6; 
+		enum status{FINDING, BACKING, FINISHED};
 };
  
 }
