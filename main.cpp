@@ -23,6 +23,77 @@
 
 using  namespace ki;
 
+struct ki_struct {
+	struct carolo *carKI;
+	struct proc_shm *procShmKI;
+	struct carolo_telemetry teleKI;
+	struct from_image imgKI;
+	Data dataKI;
+	uint32_t time_counter_bvKI;
+};
+
+int fetch_data(struct ki_struct &ki_s) {
+	/* get the telemetry of the car */
+	int ret;
+	ret = carolo_getTelemetry(ki_s.carKI, &ki_s.teleKI);
+	if (ret < 0) {
+		return EXIT_FAILURE;
+	}
+	/* check if the remote control is activ */
+	if (!(ki_s.teleKI.status & SHM_CONTROLL_CTRL_DRIVE)) {
+		ki_s.dataKI.state = FOLLOW_ROAD;
+		usleep(5000);
+		return EXIT_FAILURE;
+	} else {
+		/* read the data of the Image Proccessing out of the shm */
+		ret = -1;
+		while (ret == -1) {
+			/* set speed and steering */
+			float speed = ki_s.dataKI.speed;
+			int steering = ki_s.dataKI.steering;
+			assert(steering > 0);
+			assert(steering < 1000);
+			carolo_control(ki_s.carKI, speed, steering);
+			/* read data from the bv */
+			ret =
+				proc_shm_read(ki_s.procShmKI,
+				              SHM_BV_ACCESS,
+				              sizeof(struct from_image),
+				              &ki_s.imgKI);
+			/* if incorrect data wait and ask for new */
+			if (ret < 0) {
+				ki_s.time_counter_bvKI += 1;
+				usleep(5000);
+			}
+		}
+		/* only do something if there is a new image */
+	}
+	return 0;
+}
+
+int logging_KI(Data &data, struct proc_shm *procShm) {
+	int ret;
+	/* write data for logging in the shm */
+	data.counter++;
+	ret =
+		proc_shm_write(procShm,
+		               SHM_KI_ACCESS,
+		               sizeof(Data),
+		               &data);
+	return ret;
+}
+
+void check_time(Data &data, uint32_t &time_counter_bv) {
+	if (time_counter_bv > 10) {
+		data.speed = 0.3;
+	}
+	if (time_counter_bv > 15) {
+		data.speed = 0.0;
+	}
+	usleep(5000);
+	time_counter_bv += 1;
+}
+
 /*
  * GLOBAL
  * For the argp
@@ -111,6 +182,8 @@ int main(int argc, char *argv[]) {
 	/* get discipline + neuronal nework from argp_parse */
 	data.modus = arguments.discipline;
 	data.neural_network = arguments.neural;
+	data.counter = 0;
+	data.rc_modus = 0;
 	/* check if modus has a correct value*/
 	if (data.modus < 0 || data.modus > 3) {
 		printf("Wrong arguments\nCall main_ki --help for more information");
@@ -123,7 +196,7 @@ int main(int argc, char *argv[]) {
 	if (data.modus != 0) {
 		data.state = FOLLOW_ROAD;
 	} else {
-		data.state = PARKING;
+		data.state = LOOKING;
 	}
 
 	/*
@@ -131,19 +204,16 @@ int main(int argc, char *argv[]) {
 	 */
 	/* struct from image processing */
 	struct from_image img;
+	img.counter = 0;
 	/* to see if the values have changed */
 	int old_img_counter = -1;
-	int time_counter_bv = 0;
+	uint32_t time_counter_bv = 0;
+
 	/*speed and steering */
-	SpeedSteering s_s;
-	s_s.car = car;
-	s_s.data = &data;
+	SpeedSteering s_s(data, car);
+
 	/* class for parking */
-	/* TODO initialised with constructor
-	   Park park(&tele, &s_s);*/
-	Park park;
-	park.tele = &tele;
-	park.s_s = &s_s;
+	Park park(&tele,&s_s);
 	/* follow road init */
 	using std::placeholders::_1;
 	using std::placeholders::_2;
@@ -189,116 +259,49 @@ int main(int argc, char *argv[]) {
 	 *  h.end.x = 1;
 	 *  h.end.y = 0.2;
 	 *  img.stop_line = h;*/
+
+
+	struct ki_struct ki {car, procShm, tele, img, data, time_counter_bv};
+
 	for (;;) {
-		/* modus 0 = parking */
-		while (data.modus == 0) {
-			/* TODO ??? for what */
-			if (ret < 0) {
-				return EXIT_FAILURE;
-			}
-			/* get the telemetry of the car */
-			ret = carolo_getTelemetry(car, &tele);
-			if (ret < 0) {
-				return EXIT_FAILURE;
-			}
-			/* check if the remote control is activ */
-			if (tele.status & SHM_TELEMETRIE_STATUS_RC) {
-				data.state = FOLLOW_ROAD;
-				usleep(5000);
-			} else {
-				/* read the data of the Image Proccessing out of the shm */
-				ret = -1;
-				while (ret == -1) {
-					/* make sure the steering is correct */
-					assert(data.steering < 1000);
-					assert(data.steering > 0);
-					/* set speed and steering */
-					/* TODO ??? calling the control already done in reg*/
-					carolo_control(car, data.speed, data.steering);
-					/* read data from the bv */
-					ret =
-						proc_shm_read(procShm,
-						              SHM_BV_ACCESS,
-						              sizeof(struct from_image),
-						              &img);
-					/* if incorrect data wait and ask for new */
-					if (ret < 0) {
-						time_counter_bv += 1;
-						usleep(5000);
-					}
+		switch (data.modus) {
+			/* modus 0 = parking */
+			case 0:
+				ret = fetch_data(ki);
+				if (ret < 0) {
+					printf("fetch_data failed\n");
+					break;
 				}
-				/* TODO ??? is it necessary to call startbox */
-				/* only do something if there is a new image */
-				if (img.counter != old_img_counter) {
-					switch (data.state) {
-						case STARTBOX:
-							data.state = startbox.run();
-							break;
-						case PARKING:
-							/*EXIT_SUCCESS park finished, EXIT_FAILURE something wrong, should stop
-							 2 stands for going on*/
-							park.controlling();
-							data.modus = 3;
-							break;
-						default:
-							printf("Invalid state. state is set to parking\n");
-							data.state = PARKING;
-							break;
-					}
-					time_counter_bv = 0;
-				} else {/* if bv takes to long slow down */
-					if (time_counter_bv > 10) {
-						data.speed = 0.3;
-					}
-					if (time_counter_bv > 15) {
-						data.speed = 0.0;
-					}
-					usleep(5000);
-					time_counter_bv += 1;
+				switch (data.state) {
+				    case LOOKING:
+					    data.state = park.looking();
+					    break;
+      				case BACKING:
+	    				data.state = park.backing();
+		    			break;
+			    	case PARK_FINISH:
+				    	data.modus =3;
+					    break;
+    				default:
+	    				printf("Invalid state. state is set to parking\n");
+		    			data.state = LOOKING;
+			    		break;
 				}
-				/* write data for logging in the shm */
-				/*TODO should be proc_shm_write()???*/
-				data.counter++;
-				ret =
-					proc_shm_read(procShm,
-					              SHM_KI_ACCESS,
-					              sizeof(Data),
-					              &data);
+				time_counter_bv = 0;
+				ret = logging_KI(data, procShm);
+				if (ret < 0) {
+					printf("logging failed\n");
+				}
+
 				printf("\r %f %d", data.speed, data.steering);
-			}
-		}
-		/* modus 1 = without obsticles */
-		while (data.modus == 1) {
-			/* get the telemetry of the car */
-			ret = carolo_getTelemetry(car, &tele);
-			if (ret < 0) {
-				return EXIT_FAILURE;
-			}
-			/* check if the remote control is activ */
-			if (tele.status & SHM_TELEMETRIE_STATUS_RC) {
-				data.state = FOLLOW_ROAD;
-				usleep(10000);
-			} else {
-				/* read the data of the Image Proccessing out of the shm */
-				ret = -1;
-				assert(data.steering < 1000);
-				assert(data.steering > 0);
-				while (ret == -1) {
-					/* set speed and steering */
-					carolo_control(car, data.speed, data.steering);
-					/* read data from the bv */
-					ret =
-						proc_shm_read(procShm,
-						              SHM_BV_ACCESS,
-						              sizeof(struct from_image),
-						              &img);
-					/* if incorrect data wait and ask for new */
-					if (ret < 0) {
-						time_counter_bv += 1;
-						usleep(5000);
-					}
+				break;
+			/* modus 1 = without obsticles */
+			case 1:
+				ret = fetch_data(ki);
+				if (ret < 0) {
+					printf("fetch_data failed\n");
+					break;
 				}
-				/* only do something if there is a new image */
 				if (img.counter != old_img_counter) {
 					switch (data.state) {
 						case STARTBOX:
@@ -307,71 +310,29 @@ int main(int argc, char *argv[]) {
 						case FOLLOW_ROAD:
 							data.state = followRoad(200, false);
 							break;
-						case INTERSECTION:
-							intersection.reset();
-							data.state = intersection.run();
-							break;
 						default:
 							printf("Invalid state. state is set to follow road");
 							data.state = FOLLOW_ROAD;
 							break;
 					}
 					time_counter_bv = 0;
-				} else {/* if bv takes to long slow down */
-					if (time_counter_bv > 10) {
-						data.speed = 0.3;
-					}
-					if (time_counter_bv > 15) {
-						data.speed = 0.0;
-					}
-					usleep(5000);
-					time_counter_bv += 1;
-				}
-				/* write data for logging in the shm */
-				data.counter++;
-				ret =
-					proc_shm_read(procShm,
-					              SHM_KI_ACCESS,
-					              sizeof(Data),
-					              &data);
-				printf("\r %f %d", data.speed, data.steering);
-			}
-		}
-		/* modus 2 = with obsticles */
-		while (data.modus == 2) {
-			ret = carolo_setCTRL(car, ctrl);
-			if (ret < 0) {
-				return EXIT_FAILURE;
-			}
-			/* get the telemetry of the car */
-			ret = carolo_getTelemetry(car, &tele);
-			if (ret < 0) {
-				return EXIT_FAILURE;
-			}
-			/* check if the remote control is activ */
-			if (tele.status & SHM_TELEMETRIE_STATUS_RC) {
-				data.state = FOLLOW_ROAD;
-				usleep(10000);
-			} else {
-				/* make sure the steering is correct */
-				assert(data.steering < 1000);
-				assert(data.steering > 0);
-				/* read the data of the Image Proccessing out of the shm */
-				ret = -1;
-				while (ret == -1) {
-					/* set speed and steering */
-					carolo_control(car, data.speed, data.steering);
-					/* read data from the bv */
-					ret =
-						proc_shm_read(procShm,
-						              SHM_BV_ACCESS,
-						              sizeof(struct from_image),
-						              &img);
-					/* if incorrect data wait and ask for new */
+					/* write data for logging in the shm */
+					ret = logging_KI(data, procShm);
 					if (ret < 0) {
-						usleep(5000);
-						time_counter_bv += 1;
+						printf("logging failed\n");
 					}
+				} else {     /* if bv takes to long slow down */
+					check_time(data, time_counter_bv);
+				}
+
+				printf("\r %f %d", data.speed, data.steering);
+				break;
+			/* modus 2 = with obsticles */
+			case 2:
+				ret = fetch_data(ki);
+				if (ret < 0) {
+					printf("fetch_data failed\n");
+					break;
 				}
 				/* only do something if there is a new image */
 				if (img.counter != old_img_counter) {
@@ -395,40 +356,31 @@ int main(int argc, char *argv[]) {
 							break;
 					}
 					time_counter_bv = 0;
-				} else { /* if bv takes to long slow down */
-					if (time_counter_bv > 10) {
-						data.speed = 0.3;
+					/* write data for logging in the shm */
+					ret = logging_KI(data, procShm);
+					if (ret < 0) {
+						printf("logging failed\n");
 					}
-					if (time_counter_bv > 15) {
-						data.speed = 0.0;
-					}
-					usleep(5);
-					time_counter_bv += 1;
+
+				} else {     /* if bv takes to long slow down */
+					check_time(data, time_counter_bv);
 				}
-				/* write data for logging in the shm */
-				data.counter++;
-				ret =
-					proc_shm_read(procShm,
-					              SHM_KI_ACCESS,
-					              sizeof(Data),
-					              &data);
 				printf("\r %f %d", data.speed, data.steering);
-			}
-		}
-		/* later wait if someone change the modus with a button press */
-		while (data.modus == 3) {
-			carolo_control(car, data.speed, data.steering);
-			if (ret < 0) {
-				return EXIT_FAILURE;
-			}
-			printf("waiting\n");
-			s_s.reg(0.0, 0.0);
-			time_counter_bv = 0;
-			usleep(10000);
+				break;
+			/* later wait if someone change the modus with a button press */
+			default:
+				carolo_control(car, data.speed, data.steering);
+				if (ret < 0) {
+					return EXIT_FAILURE;
+				}
+				printf("waiting\n");
+				s_s.reg(0.0, 0.0);
+				time_counter_bv = 0;
+				usleep(10000);
 		}
 	}
+
 	/* deinit but it will never be reached because for(;;) */
-	if (data.neural_network) {}
 	carolo_deinit(car);
 	proc_shm_destroy(procShm);
 	return EXIT_SUCCESS;

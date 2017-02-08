@@ -1,6 +1,7 @@
 #include "park.h"
 #include <assert.h>
-
+#include <cstddef>
+using namespace ki;
 /**
  *  control the whole parking process, according to the status
  *  call the corresponding function
@@ -8,32 +9,19 @@
  *  @return 1 to main, if the parking finished
  */
 
-Park::Park(carolo_telemetry *tel, SpeedSteering *ss): status(FINDING),substatus(0){
+Park::Park(carolo_telemetry *tel, SpeedSteering *ss): substatus(0){
 
 	assert(tel != NULL && ss != NULL);
 	tele = tel;
 	s_s = ss;
 }
 
-int Park::controlling() {
-	switch (status) {
-		case FINDING: status = finding();
-			break;
-		case BACKING: status = backing();
-			break;
-		case FINISHED: return 1; /* park finish */
-     	default:  return 0;
-	}
-	return 2;  
-}
-
 /**
  *  look for a park space whose length is greater than 0.6m
  *  side_sensor, distance mebmer in telemetry struct are needed
- *
- *  @return the current status back to controlling(),
+ * 
  */
-int Park::finding() {
+States Park::looking() {
 
 	bool side_sensor = false;        /* !!! it should be from telemetry struct. But so far it's broken */
 	if (0 == substatus && true  == side_sensor) {
@@ -59,7 +47,7 @@ int Park::finding() {
 		}
 	}
 s_s->reg(0,0.1);
-return FINDING;
+return LOOKING;
 }
 
 /**
@@ -67,12 +55,9 @@ return FINDING;
  *  based on back_sensor to change the substatus
  *  x is from -1 to 1, temporarily i set 1 = 30 degree,
  *  -1 = -30 which means turn left 30 degree
- *
- *  @return status to controlling(), 1 for back, 2 for finish
  */
-int Park::backing() {
+States Park::backing() {
 	float x = 0;
-	// ales ? move to config
 	float maxspeed = 0.05;
 	float tmp_backsensor = tele->us[0];
 	
@@ -101,7 +86,7 @@ int Park::backing() {
 }
  else if (5 == substatus && tmp_backsensor > 0.12) {
 	s_s->reg(0, 0);                        /*stop the car*/                                  
-	return FINISHED;                              /*park is finished*/
+	return PARK_FINISH;                              /*park is finished*/
 }
 
 s_s->reg(x, maxspeed);
